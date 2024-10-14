@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subtitle Translator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-top: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        label {
+            font-size: 1rem;
+            margin-bottom: 5px;
+            display: inline-block;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        input[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        #video-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #subtitles-container {
+            margin-top: 20px;
+        }
+
+        #translated-subtitles {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 5px;
+            height: 150px;
+            overflow-y: auto;
+            display: none; /* Initially hidden */
+        }
+
+        .loading-spinner {
+            display: none; /* Initially hidden */
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #007bff;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Translate YouTube Subtitles</h1>
+
+    <form action="/translate_video" method="POST" id="translate-form">
+        <label for="video_url">YouTube Video URL:</label>
+        <input type="text" id="video_url" name="video_url" required>
+
+        <label for="target_language">Target Language (e.g., es for Spanish, fr for French):</label>
+        <input type="text" id="target_language" name="target_language" required>
+
+        <input type="submit" value="Translate">
+    </form>
+
+    <!-- Space for embedded video -->
+    <div id="video-container">
+        <iframe id="youtube-video" width="400" height="225" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <!-- Loading spinner -->
+    <div class="loading-spinner" id="loading-spinner"></div>
+
+    <!-- Space for showing translated subtitles -->
+    <div id="subtitles-container">
+        <h3>Translated Subtitles:</h3>
+        <pre id="translated-subtitles"></pre>
+    </div>
+
+    <!-- Language Prefixes Reference Table -->
+    <h3>Language Prefixes</h3>
+    <table>
+        <tr>
+            <th>Language</th>
+            <th>Prefix</th>
+        </tr>
+        <tr>
+            <td>English</td>
+            <td>en</td>
+        </tr>
+        <tr>
+            <td>Spanish</td>
+            <td>es</td>
+        </tr>
+        <tr>
+            <td>French</td>
+            <td>fr</td>
+        </tr>
+        <tr>
+            <td>German</td>
+            <td>de</td>
+        </tr>
+        <tr>
+            <td>Chinese (Simplified)</td>
+            <td>zh-CN</td>
+        </tr>
+        <tr>
+            <td>Hindi</td>
+            <td>hi</td>
+        </tr>
+        <tr>
+            <td>Arabic</td>
+            <td>ar</td>
+        </tr>
+    </table>
+</div>
+
+<script>
+    let page = 1;
+    let fetchTimeout = null;
+
+    function fetchNextWords() {
+        fetch(`/get_next_words?page=${page}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.translated_words.length > 0) {
+                    document.getElementById('translated-subtitles').innerText += data.translated_words.join(' ') + ' ';
+
+                    if (data.has_more) {
+                        page++;
+                        fetchTimeout = setTimeout(fetchNextWords, 3000);
+                    } else {
+                        clearTimeout(fetchTimeout);
+                        document.getElementById('loading-spinner').style.display = 'none'; // Hide spinner when done
+                    }
+                } else {
+                    clearTimeout(fetchTimeout);
+                    document.getElementById('loading-spinner').style.display = 'none'; // Ensure spinner is hidden if no more words
+                }
+            });
+    }
+
+    document.getElementById('translate-form').onsubmit = async function(event) {
+        event.preventDefault();
+
+        // Show the loading spinner and hide subtitles initially
+        document.getElementById('loading-spinner').style.display = 'block';
+        document.getElementById('translated-subtitles').style.display = 'none';
+
+        const videoUrl = document.getElementById('video_url').value;
+        const targetLanguage = document.getElementById('target_language').value;
+
+        let videoId = videoUrl.split('v=')[1];
+        const ampersandPosition = videoId.indexOf('&');
+        if (ampersandPosition !== -1) {
+            videoId = videoId.substring(0, ampersandPosition);
+        }
+
+        const youtubeIframe = document.getElementById('youtube-video');
+        youtubeIframe.src = `https://www.youtube.com/embed/${videoId}`;
+
+        // Send the video URL and language to the Flask backend to translate and store subtitles
+        await fetch('/translate_video', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `video_url=${videoUrl}&target_language=${targetLanguage}`,
+        });
+
+        // Hide the loading spinner and show the subtitles container when ready
+        document.getElementById('loading-spinner').style.display = 'none';
+        document.getElementById('translated-subtitles').style.display = 'block';
+
+        page = 1;
+        setTimeout(fetchNextWords, 2000);  // Start fetching the stored subtitles from the database
+    };
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
