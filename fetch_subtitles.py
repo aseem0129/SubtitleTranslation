@@ -4,16 +4,12 @@ import json
 import os
 from google.cloud import translate_v2 as translate
 
-# Initialize the translation client (Make sure your credentials.json path is correct)
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"path_to_your_credentials.json"
-translator = translate.Client()
-
 
 def get_subtitles(video_url):
     ydl_opts = {
-        'skip_download': True,  # We don't want to download the video, just subtitles
-        'writesubtitles': True,  # Enable downloading subtitles
-        'subtitlesformat': 'srt',  # Download subtitles in .srt format
+        'skip_download': True, 
+        'writesubtitles': True, 
+        'subtitlesformat': 'srt',  
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
